@@ -8,6 +8,7 @@
 #include <vespa/searchlib/fef/iqueryenvironment.h>
 #include <vespa/searchlib/fef/properties.h>
 #include "indexenvironment.h"
+#include <vespa/searchlib/common/geo_location_spec.h>
 
 namespace streaming {
 
