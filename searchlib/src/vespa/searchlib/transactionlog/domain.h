@@ -57,6 +57,26 @@ public:
     uint64_t size() const;
     Domain & setConfig(const DomainConfig & cfg);
 private:
+    bool commitIfStale(const vespalib::MonitorGuard & guard);
+    void commitIfFull(const vespalib::MonitorGuard & guard);
+    class Chunk {
+    public:
+        Chunk();
+        ~Chunk();
+        void add(const Packet & packet, Writer::DoneCallback onDone);
+        size_t sizeBytes() const { return _data.sizeBytes(); }
+        const Packet & getPacket() const { return _data; }
+        vespalib::duration age() const;
+        size_t getNumCallBacks() const { return _callBacks.size(); }
+    private:
+        Packet                             _data;
+        std::vector<Writer::DoneCallback>  _callBacks;
+        vespalib::steady_time              _firstArrivalTime;
+    };
+
+    std::unique_ptr<Chunk> grabCurrentChunk(const vespalib::MonitorGuard & guard);
+    bool commitChunk(std::unique_ptr<Chunk> chunk, const vespalib::MonitorGuard & chunkOrderGuard);
+    void doCommit(std::unique_ptr<Chunk> chunk);
     SerialNum begin(const vespalib::LockGuard & guard) const;
     SerialNum end(const vespalib::LockGuard & guard) const;
     size_t byteSize(const vespalib::LockGuard & guard) const;
@@ -74,6 +94,7 @@ private:
     using DurationSeconds = std::chrono::duration<double>;
 
     DomainConfig           _config;
+    std::unique_ptr<Chunk> _currentChunk;
     SerialNum              _lastSerial;
     std::unique_ptr<Executor> _singleCommiter;
     Executor             & _commitExecutor;

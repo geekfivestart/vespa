@@ -35,6 +35,7 @@ VESPA_THREAD_STACK_TAG(domain_commit_executor);
 Domain::Domain(const string &domainName, const string & baseDir, Executor & commitExecutor,
                Executor & sessionExecutor, const DomainConfig & cfg, const FileHeaderContext &fileHeaderContext)
     : _config(cfg),
+      _currentChunk(std::make_unique<Chunk>()),
       _lastSerial(0),
       _singleCommiter(std::make_unique<vespalib::ThreadStackExecutor>(1, 128*1024)),
       _commitExecutor(commitExecutor),
@@ -122,7 +123,12 @@ private:
     bool              & _pendingSync;
 };
 
-Domain::~Domain() { }
+Domain::~Domain() {
+    MonitorGuard guard(_currentChunkMonitor);
+    guard.broadcast();
+    commitChunk(grabCurrentChunk(guard), guard);
+    _singleCommiter->shutdown().sync();
+}
 
 DomainInfo
 Domain::getDomainInfo() const
@@ -303,10 +309,92 @@ waitPendingSync(vespalib::Monitor &syncMonitor, bool &pendingSync)
 
 }
 
+Domain::Chunk::Chunk()
+    : _data(size_t(-1)),
+      _callBacks(),
+      _firstArrivalTime()
+{}
+
+Domain::Chunk::~Chunk() = default;
+
 void
-Domain::commit(const Packet & packet, Writer::DoneCallback onDone)
-{
-    (void) onDone;
+Domain::Chunk::add(const Packet &packet, Writer::DoneCallback onDone) {
+    if (_callBacks.empty()) {
+        _firstArrivalTime = vespalib::steady_clock::now();
+    }
+    _data.merge(packet);
+    _callBacks.emplace_back(std::move(onDone));
+}
+
+vespalib::duration
+Domain::Chunk::age() const {
+    if (_callBacks.empty()) {
+        return 0ms;
+    }
+    return (vespalib::steady_clock::now() - _firstArrivalTime);
+}
+
+void
+Domain::commit(const Packet & packet, Writer::DoneCallback onDone) {
+    vespalib::MonitorGuard guard(_currentChunkMonitor);
+    if (_lastSerial >= packet.range().from()) {
+        throw runtime_error(fmt("Incoming serial number(%" PRIu64 ") must be bigger than the last one (%" PRIu64 ").",
+                                packet.range().from(), _lastSerial));
+    } else {
+        _lastSerial = packet.range().to();
+    }
+    _currentChunk->add(packet, std::move(onDone));
+    commitIfFull(guard);
+}
+
+void
+Domain::commitIfFull(const vespalib::MonitorGuard &guard) {
+    if (_currentChunk->sizeBytes() > _config.getChunkSizeLimit()) {
+        auto completed = grabCurrentChunk(guard);
+        if (completed) {
+            commitChunk(std::move(completed), guard);
+        }
+    }
+}
+
+std::unique_ptr<Domain::Chunk>
+Domain::grabCurrentChunk(const vespalib::MonitorGuard & guard) {
+    assert(guard.monitors(_currentChunkMonitor));
+    auto chunk = std::move(_currentChunk);
+    _currentChunk = std::make_unique<Chunk>();
+    return chunk;
+}
+
+bool
+Domain::commitIfStale() {
+    vespalib::MonitorGuard guard(_currentChunkMonitor);
+    return commitIfStale(guard);
+}
+
+bool
+Domain::commitIfStale(const vespalib::MonitorGuard & guard) {
+    assert(guard.monitors(_currentChunkMonitor));
+    if ((_currentChunk->age() > _config.getChunkAgeLimit()) && ! _currentChunk->getPacket().empty()) {
+        return commitChunk(grabCurrentChunk(guard), guard);
+    }
+    return false;
+}
+
+bool
+Domain::commitChunk(std::unique_ptr<Chunk> chunk, const vespalib::MonitorGuard & chunkOrderGuard) {
+    assert(chunkOrderGuard.monitors(_currentChunkMonitor));
+    if ( ! chunk->getPacket().empty()) {
+        _singleCommiter->execute( makeLambdaTask([this, chunk = std::move(chunk)]() mutable {
+            doCommit(std::move(chunk));
+        }));
+        return true;
+    }
+    return false;
+}
+
+void
+Domain::doCommit(std::unique_ptr<Chunk> chunk) {
+    const Packet & packet = chunk->getPacket();
     DomainPart::SP dp(_parts.rbegin()->second);
     vespalib::nbostream_longlivedbuf is(packet.getHandle().data(), packet.getHandle().size());
     Packet::Entry entry;
@@ -326,7 +414,13 @@ Domain::commit(const Packet & packet, Writer::DoneCallback onDone)
         vespalib::File::sync(dir());
     }
     dp->commit(entry.serial(), packet);
+    if (_config.getFSyncOnCommit()) {
+        dp->sync();
+    }
     cleanSessions();
+    LOG(debug, "Releasing %zu acks and %zu entries and %zu bytes and age %ld us",
+        chunk->getNumCallBacks(), chunk->getPacket().size(),
+        chunk->sizeBytes(), vespalib::count_us(chunk->age()));
 }
 
 bool

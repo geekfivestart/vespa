@@ -97,6 +97,7 @@ TransLogServer::TransLogServer(const vespalib::string &name, int listenPort, con
       _threadPool(std::make_unique<FastOS_ThreadPool>(1024*120)),
       _transport(std::make_unique<FNET_Transport>()),
       _supervisor(std::make_unique<FRT_Supervisor>(_transport.get())),
+      _staleCommitThread(),
       _domains(),
       _reqQ(),
       _fileHeaderContext(fileHeaderContext)
@@ -141,12 +142,19 @@ TransLogServer::TransLogServer(const vespalib::string &name, int listenPort, con
         throw std::runtime_error(make_string("Failed creating tls base dir %s r(%d), e(%d). Requires manual intervention.", _baseDir.c_str(), retval, errno));
     }
     start(*_threadPool);
+    _staleCommitThread = std::make_unique<std::thread>([this]() {
+        while (running()) {
+            std::this_thread::sleep_for(getChunkAgeLimit());
+            commitIfStale();
+        }
+    });
 }
 
 TransLogServer::~TransLogServer()
 {
     stop();
     join();
+    _staleCommitThread->join();
     _commitExecutor.shutdown();
     _commitExecutor.sync();
     _sessionExecutor.shutdown();
@@ -219,6 +227,16 @@ TransLogServer::setDomainConfig(const DomainConfig & cfg) {
         domain.second->setConfig(cfg);
     }
     return *this;
+}
+
+bool
+TransLogServer::commitIfStale() {
+    MonitorGuard domainMonitor(_domainMutex);
+    bool committedAnything(false);
+    for (const auto &domain : _domains) {
+        committedAnything = committedAnything || domain.second->commitIfStale();
+    }
+    return committedAnything;
 }
 
 DomainStats
