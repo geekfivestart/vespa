@@ -54,6 +54,7 @@ vespa_define_module(
     src/tests/tensor/direct_sparse_tensor_builder
     src/tests/tensor/index_lookup_table
     src/tests/tensor/onnx_wrapper
+    src/tests/tensor/packed_mappings
     src/tests/tensor/tensor_add_operation
     src/tests/tensor/tensor_address
     src/tests/tensor/tensor_conformance

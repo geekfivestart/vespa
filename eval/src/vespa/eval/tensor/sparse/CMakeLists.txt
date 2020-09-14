@@ -2,6 +2,9 @@
 vespa_add_library(eval_tensor_sparse OBJECT
     SOURCES
     direct_sparse_tensor_builder.cpp
+    packed_labels.cpp
+    packed_mappings.cpp
+    packed_mappings_builder.cpp
     sparse_tensor.cpp
     sparse_tensor_add.cpp
     sparse_tensor_address_builder.cpp
