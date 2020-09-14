@@ -11,4 +11,7 @@ vespa_add_library(eval_tensor_sparse OBJECT
     sparse_tensor_match.cpp
     sparse_tensor_modify.cpp
     sparse_tensor_remove.cpp
+    stored_labels.cpp
+    stored_mappings.cpp
+    stored_mappings_builder.cpp
 )
