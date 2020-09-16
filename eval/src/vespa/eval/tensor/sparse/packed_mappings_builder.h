@@ -9,7 +9,7 @@
 #include <set>
 #include <vector>
 
-namespace vespalib::tensor {
+namespace vespalib::eval {
 
 class PackedMappingsBuilder {
 public:
@@ -21,9 +21,14 @@ public:
         _mappings()
     {}
 
+    ~PackedMappingsBuilder();
+
     uint32_t add_mapping_for(SparseAddress address);
 
     std::unique_ptr<PackedMappings> build_mappings() const;
+
+    size_t extra_memory() const;
+    PackedMappings target_memory(char *mem_start, char *mem_end) const;
 
     uint32_t num_sparse_dims() const { return _num_dims; }
     size_t size() const { return _mappings.size(); }

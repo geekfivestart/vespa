@@ -73,6 +73,7 @@ vespa_define_module(
     src/vespa/eval/gp
     src/vespa/eval/tensor
     src/vespa/eval/tensor/dense
+    src/vespa/eval/tensor/mixed
     src/vespa/eval/tensor/serialization
     src/vespa/eval/tensor/sparse
 )

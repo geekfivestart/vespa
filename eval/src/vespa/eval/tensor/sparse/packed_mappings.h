@@ -5,7 +5,7 @@
 #include "packed_labels.h"
 #include <vector>
 
-namespace vespalib::tensor {
+namespace vespalib::eval {
 
 class PackedMappings {
 public:

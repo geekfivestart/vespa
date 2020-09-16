@@ -3,7 +3,7 @@
 #include "packed_mappings.h"
 #include <assert.h>
 
-namespace vespalib::tensor {
+namespace vespalib::eval {
 
 
 int32_t

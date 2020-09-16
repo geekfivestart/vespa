@@ -5,7 +5,7 @@
 #include <vespa/vespalib/stllike/string.h>
 #include <vespa/vespalib/util/arrayref.h>
 
-namespace vespalib::tensor {
+namespace vespalib::eval {
 
 class PackedLabels {
 public:
