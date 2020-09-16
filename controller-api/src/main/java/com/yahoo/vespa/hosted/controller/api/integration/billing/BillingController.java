@@ -52,4 +52,8 @@ public interface BillingController {
 
     void deleteBillingInfo(TenantName tenant, Set<User> users, boolean isPrivileged);
 
+    // TODO: Remove default implementation
+    default byte[] getInvoicePdf(TenantName tenant, Invoice.Id invoiceId) {
+        return new byte[0];
+    }
 }

@@ -1,7 +1,6 @@
 // Copyright Verizon Media. Licensed under the terms of the Apache 2.0 license. See LICENSE in the project root.
 package com.yahoo.vespa.hosted.controller.restapi.billing;
 
-import com.yahoo.config.provision.ApplicationId;
 import com.yahoo.config.provision.TenantName;
 import com.yahoo.container.jdisc.HttpRequest;
 import com.yahoo.container.jdisc.HttpResponse;
@@ -19,10 +18,10 @@ import com.yahoo.slime.Slime;
 import com.yahoo.slime.SlimeUtils;
 import com.yahoo.vespa.hosted.controller.ApplicationController;
 import com.yahoo.vespa.hosted.controller.Controller;
-import com.yahoo.vespa.hosted.controller.api.integration.billing.PaymentInstrument;
-import com.yahoo.vespa.hosted.controller.api.integration.billing.Invoice;
-import com.yahoo.vespa.hosted.controller.api.integration.billing.InstrumentOwner;
 import com.yahoo.vespa.hosted.controller.api.integration.billing.BillingController;
+import com.yahoo.vespa.hosted.controller.api.integration.billing.InstrumentOwner;
+import com.yahoo.vespa.hosted.controller.api.integration.billing.Invoice;
+import com.yahoo.vespa.hosted.controller.api.integration.billing.PaymentInstrument;
 import com.yahoo.vespa.hosted.controller.api.integration.billing.PlanId;
 import com.yahoo.yolean.Exceptions;
 
@@ -96,6 +95,7 @@ public class BillingApiHandler extends LoggingRequestHandler {
         if (path.matches("/billing/v1/tenant/{tenant}/instrument")) return getInstruments(path.get("tenant"), userId);
         if (path.matches("/billing/v1/tenant/{tenant}/billing")) return getBilling(path.get("tenant"), request.getProperty("until"));
         if (path.matches("/billing/v1/tenant/{tenant}/plan")) return getPlan(path.get("tenant"));
+        if (path.matches("/billing/v1/tenant/{tenant}/invoice/{invoice}")) return getInvoice(path.get("tenant"), path.get("invoice"), request.getProperty("format"));
         if (path.matches("/billing/v1/billing")) return getBillingAllTenants(request.getProperty("until"));
         if (path.matches("/billing/v1/invoice/tenant/{tenant}/line-item")) return getLineItems(path.get("tenant"));
         return ErrorResponse.notFoundError("Nothing at " + path);
@@ -121,6 +121,16 @@ public class BillingApiHandler extends LoggingRequestHandler {
         if (path.matches("/billing/v1/invoice/tenant/{tenant}/line-item")) return addLineItem(request, path.get("tenant"));
         return ErrorResponse.notFoundError("Nothing at " + path);
 
+    }
+
+    private HttpResponse getInvoice(String tenant, String invoice, String format) {
+        if (format == null || "json".equalsIgnoreCase(format)) {
+            Slime slime = new Slime();
+            rede
+            return new SlimeJsonResponse(slime);
+        }
+        if (format == null) throw new IllegalArgumentException("Mu")
+        return null;
     }
 
     private HttpResponse getPlan(String tenant) {
