@@ -45,7 +45,7 @@ public class ContainerThreadPool extends AbstractComponent implements AutoClosea
         // That counters what we we want to achieve with the Q that will prefer thread locality.
         executor.prestartAllCoreThreads();
         threadpool = new ExecutorServiceWrapper(executor, threadPoolMetric, processTerminator,
-                config.maxThreadExecutionTimeSeconds() * 1000L);
+                config.maxThreadExecutionTimeSeconds() * 1000L, config.name());
     }
 
     public Executor executor() { return threadpool; }

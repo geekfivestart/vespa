@@ -30,7 +30,7 @@ class ExecutorServiceWrapper extends ForwardingExecutorService {
     ExecutorServiceWrapper(
             WorkerCompletionTimingThreadPoolExecutor wrapped,
             ThreadPoolMetric metric, ProcessTerminator processTerminator,
-            long maxThreadExecutionTimeMillis) {
+            long maxThreadExecutionTimeMillis, String name) {
         this.wrapped = wrapped;
         this.metric = metric;
         this.processTerminator = processTerminator;
@@ -39,11 +39,12 @@ class ExecutorServiceWrapper extends ForwardingExecutorService {
         metric.reportThreadPoolSize(wrapped.getPoolSize());
         metric.reportActiveThreads(wrapped.getActiveCount());
         metricReporter = new Thread(this::reportMetrics);
+        metricReporter.setName(name + "-threadpool-metric-reporter");
         metricReporter.setDaemon(true);
         metricReporter.start();
     }
 
-    private final void reportMetrics() {
+    private void reportMetrics() {
         try {
             while (!closed.get()) {
                 metric.reportThreadPoolSize(wrapped.getPoolSize());
