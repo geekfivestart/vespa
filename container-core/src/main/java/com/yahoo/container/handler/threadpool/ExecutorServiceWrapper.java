@@ -49,6 +49,8 @@ class ExecutorServiceWrapper extends ForwardingExecutorService {
             while (!closed.get()) {
                 metric.reportThreadPoolSize(wrapped.getPoolSize());
                 metric.reportActiveThreads(wrapped.getActiveCount());
+                metric.reportWorkQueueSize(wrapped.getQueue().size());
+                metric.reportWorkQueueRemainingCapacity(wrapped.getQueue().remainingCapacity());
                 Thread.sleep(100);
             }
         } catch (InterruptedException e) { }
